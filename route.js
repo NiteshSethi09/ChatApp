@@ -1,71 +1,65 @@
 const { Router } = require("express");
 const router = Router();
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Joi = require("joi");
+const SECRET = "blahblahblahblah"; // Temporary secret
+const auth = require("./verifyToken");
 const User = require("./model/User");
 
-router.get("/all", async (req, res) => {
-  const data = await User.find();
-  res.json(data);
-  console.log(data);
+router.get("/all", auth, async (req, res) => {
+  const user = await User.findOne({ _id: req.user });
+  res.send(user);
+  console.log(req.headers.cookie);
 });
 
 router.post("/signup", async (req, res) => {
-  let { name, email, password, password2 } = req.body;
-  const regexPattern = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/;
-  // const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  let { name, email, password } = req.body;
+  console.log(name, email, password);
 
-  console.log(name, email, password, password2);
+  const schema = Joi.object({
+    name: Joi.string().required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+  });
 
-  if (!name || !email || !password || !password2) {
+  const { error } = schema.validate(req.body);
+  if (error) return res.json(error.details[0].message);
+
+  if (await User.findOne({ email }))
     return res
       .status(400)
-      .json({ msg: "Please provide all necessary information." });
-  }
-  if (await User.findOne({ email })) {
-    return res
-      .status(400)
-      .json({ msg: "Account already exists with this id." });
-  }
-  if (password !== password2) {
-    return res.status(403).json({ msg: "Password should be both same." });
-  }
-  if (password.length < 6) {
-    return res
-      .status(403)
-      .json({ msg: "Password must be 6 or more characters." });
-  }
-  if (!email.match(regexPattern)) {
-    return res.status(403).json({ msg: "Email is't in right format." });
-  }
-
-  console.log(req.body);
+      .json({ msg: "Account already exists with this email id." });
 
   const salt = await bcrypt.genSalt(10);
   password = await bcrypt.hash(password, salt);
   await User.create({ name, password, email })
     .then(() => res.json({ msg: "User saved successfully." }))
-    .catch((err) => console.log("panga" + err));
+    .catch((err) => console.log("Some error occured: ", err));
 });
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ msg: "Please provide all necessary information." });
-  }
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) return res.json(error.details[0].message);
 
   const user = await User.findOne({ email });
   if (user) {
-    console.log(user);
-    console.log(await bcrypt.compare(password, user.password));
+    const token = jwt.sign({ _id: user._id }, SECRET);
     if (await bcrypt.compare(password, user.password)) {
-      return res.json({ msg: "User logged in successfully." });
+      res.header("auth-token", token).cookie("access_token", token).send(token);
     } else {
-      return res.json({ msg: "Wrong information entered." });
+      return res.status(400).json({ msg: "Wrong information entered." });
     }
   } else {
-    return res.json({ msg: "User with this email doesn't exists." });
+    return res
+      .status(400)
+      .json({ msg: "User with this email doesn't exists." });
   }
 });
 
