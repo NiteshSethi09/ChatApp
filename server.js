@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const route = require("./route");
 
 mongoose
@@ -13,9 +13,9 @@ mongoose
   .then(() => console.log("Connected successfully"))
   .catch((err) => console.log("error Occured while connecting" + err));
 
-// app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.use(cookieParser());
 app.use("/chat", route);
 
 const server = app.listen(5000, () =>
