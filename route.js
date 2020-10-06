@@ -6,11 +6,31 @@ const Joi = require("joi");
 const SECRET = "blahblahblahblah"; // Temporary secret
 const auth = require("./verifyToken");
 const User = require("./model/User");
+const Chatroom = require("./model/chatroom");
 
 router.get("/all", auth, async (req, res) => {
   const user = await User.findOne({ _id: req.user });
   res.send(user);
-  console.log(req.headers.cookie);
+});
+
+router.post("/create", async (req, res) => {
+  let { name } = req.body;
+
+  const schema = Joi.object({
+    name: Joi.string().required(),
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) return res.json(error.details[0].message);
+
+  if (await Chatroom.findOne({ name }))
+    return res
+      .status(400)
+      .json({ msg: "Chatroom already exists with this name." });
+
+  await User.create({ name })
+    .then(() => res.json({ msg: "Chatroom saved successfully." }))
+    .catch((err) => console.log("Some error occured: ", err));
 });
 
 router.post("/signup", async (req, res) => {
@@ -52,7 +72,7 @@ router.post("/login", async (req, res) => {
   if (user) {
     const token = jwt.sign({ _id: user._id }, SECRET);
     if (await bcrypt.compare(password, user.password)) {
-      res.header("auth-token", token).cookie("access_token", token).send(token);
+      res.cookie("access_token", token).send(token);
     } else {
       return res.status(400).json({ msg: "Wrong information entered." });
     }
