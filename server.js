@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
-const route = require("./route");
+require("dotenv").config();
 
 mongoose
   .connect("mongodb://localhost:27017/chat", {
@@ -16,7 +16,7 @@ mongoose
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
-app.use("/chat", route);
+require("./route")(app);
 
 const server = app.listen(5000, () =>
   console.log(`Server started on port 5000`)

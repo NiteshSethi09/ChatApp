@@ -1,4 +1,5 @@
 const { Schema, model, SchemaTypes } = require("mongoose");
+const Joi = require("joi");
 
 const chatroomSchema = new Schema(
   {
@@ -17,4 +18,13 @@ const chatroomSchema = new Schema(
   }
 );
 
-module.exports = model("Chatroom", chatroomSchema);
+function validateChatroom(chatroom) {
+  const { error } = Joi.object({
+    name: Joi.string().required(),
+  }).validate(chatroom);
+
+  if (error) return res.json(error.details[0].message);
+}
+
+exports.Chatroom = model("Chatroom", chatroomSchema);
+exports.validateChatroom = validateChatroom;
